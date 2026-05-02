@@ -1,0 +1,8 @@
+# macOS
+.DS_Store
+
+# 差分管理用タイムスタンプ（動的生成・実行ごとに更新）
+state/last_run.timestamp
+
+# ログ（大量になる可能性があるため除外）
+logs/*.log
