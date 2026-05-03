@@ -26,3 +26,12 @@ TIMESTAMP_FILE="${STATE_DIR}/last_run.timestamp"
 # プロンプト・ルール定義ファイル
 SQL_CHECK_PROMPT="${REPO_ROOT}/.github/prompts/sql-check.prompt.md"
 RULES_CSV="${REPO_ROOT}/rules/sql-antipatterns.csv"
+
+# ---------------------------------------------------------------
+# 使用するAIモデル（空文字 = デフォルトモデル: Claude Sonnet 4.5）
+# 例: SQL_REVIEW_MODEL="gpt-4.1"
+# 環境変数で上書き可能（例: SQL_REVIEW_MODEL=gpt-4.1 bash run_sql_review.sh）
+# 利用可能なモデル確認: copilot を対話起動 → /model
+# ※ COPILOT_MODEL（公式環境変数・カスタムプロバイダー向け）との衝突を避けるため SQL_REVIEW_MODEL とする
+# ---------------------------------------------------------------
+SQL_REVIEW_MODEL="${SQL_REVIEW_MODEL:-}"

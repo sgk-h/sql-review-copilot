@@ -121,13 +121,16 @@ for target_file in "${target_files[@]}"; do
 
     SQL=$(cat "$target_file")
 
+    MODEL_OPT=""
+    [[ -n "${SQL_REVIEW_MODEL:-}" ]] && MODEL_OPT="--model ${SQL_REVIEW_MODEL}"
+
     if copilot -p "${PROMPT_BODY}
 
 ## ルール定義（CSV）
 ${RULES}
 
 ## チェック対象SQL（ファイル: ${target_file}）
-${SQL}" --allow-all-tools --allow-all-paths > "$report_file" 2>&1; then
+${SQL}" --allow-all-tools --allow-all-paths ${MODEL_OPT} > "$report_file" 2>&1; then
         log "  → 完了: ${report_file}"
         ((success_count++)) || true
     else

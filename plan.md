@@ -224,6 +224,40 @@ ${SQL}" --allow-all-tools --allow-all-paths
 
 ---
 
+## フェーズ 5: AIモデル指定機能
+
+> **Phase 4 完了後に追加**
+
+10. **`scripts/config.sh` に `SQL_REVIEW_MODEL` 変数を追加**
+
+    ```bash
+    # 使用するAIモデル（空文字 = デフォルトモデル: Claude Sonnet 4.5）
+    # 例: SQL_REVIEW_MODEL="gpt-4.1"
+    # 環境変数で上書き可能: SQL_REVIEW_MODEL=gpt-4.1 bash run_sql_review.sh
+    SQL_REVIEW_MODEL="${SQL_REVIEW_MODEL:-}"
+    ```
+
+    > **命名理由**: 公式環境変数 `COPILOT_MODEL`（カスタムプロバイダー向け）と衝突を避けるため `SQL_REVIEW_MODEL` とする。
+
+11. **`scripts/run_sql_review.sh` の `copilot -p` 呼び出し部分を修正**
+
+    ```bash
+    MODEL_OPT=""
+    [[ -n "${SQL_REVIEW_MODEL:-}" ]] && MODEL_OPT="--model ${SQL_REVIEW_MODEL}"
+
+    copilot -p "..." --allow-all-tools --allow-all-paths ${MODEL_OPT}
+    ```
+
+    - `SQL_REVIEW_MODEL` が空の場合は `--model` フラグを付与しない（デフォルトモデルを使用）
+    - 無効なモデル名の場合は `copilot` が非ゼロで終了 → 既存の `if ... then ... else log "ERROR" fi` で捕捉済み
+
+    **利用可能なモデル確認方法:**
+    - GitHub ホステッドモデル一覧: 対話型セッションで `copilot` → `/model` を実行
+    - カスタムプロバイダー設定: `copilot help providers`
+    - 公式ドキュメント: [About GitHub Copilot CLI > Model usage](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli#model-usage)
+
+---
+
 ## 関連ファイル一覧
 
 | ファイル | 種別 | 役割 |
