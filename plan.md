@@ -256,6 +256,15 @@ ${SQL}" --allow-all-tools --allow-all-paths
     - カスタムプロバイダー設定: `copilot help providers`
     - 公式ドキュメント: [About GitHub Copilot CLI > Model usage](https://docs.github.com/en/copilot/concepts/agents/copilot-cli/about-copilot-cli#model-usage)
 
+    **使い方（運用時）:**
+
+    | シナリオ | 方法 |
+    |---|---|
+    | デフォルトモデルを使う | 何もしない（`config.sh` の `SQL_REVIEW_MODEL` は空のまま） |
+    | 実行ごとに一時的に変更 | `SQL_REVIEW_MODEL=gpt-4.1 bash scripts/run_sql_review.sh` |
+    | 常時特定モデルに固定 | `config.sh` の `SQL_REVIEW_MODEL=""` を `SQL_REVIEW_MODEL="gpt-4.1"` に変更 |
+    | cron で固定モデルを使う | `~/.copilot_env` に `export SQL_REVIEW_MODEL=gpt-4.1` を追記 |
+
 ---
 
 ## 関連ファイル一覧
