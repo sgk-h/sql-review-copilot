@@ -5,6 +5,8 @@
 新 GitHub Copilot CLI（`copilot` コマンド）の `-p` オプションで非対話実行。  
 差分チェック機能（前回実行以降の変更ファイルのみ処理）でプレミアムリクエスト消費を最小化。
 
+> **実現可能性確認済み**: 実装着手前に主要な技術的リスクを実機で検証し、全項目で動作を確認済み。詳細は「[実現可能性の事前検証](#実現可能性の事前検証)」セクションを参照。
+
 ---
 
 ## ディレクトリ構成（完成形）
@@ -57,15 +59,31 @@ sql-review-copilot/               ← このリポジトリ（レビュー基盤
 2. **Fine-grained PAT 作成**
    - GitHub Settings > Developer settings > Personal access tokens > Fine-grained tokens
    - Resource owner: **個人アカウント**を選択（Organization は不可）
-   - Permissions > Account タブ > **Copilot Requests: write** を付与
+   - Repository access: **No repositories**（リポジトリ権限は不要）
+   - Permissions > Account タブ > **Copilot Requests: Read-only** を付与
+     > **補足**: 「Read-only」が正しい設定。「Read-only = Copilot API にリクエストを送受信できる（＝Copilotを使う）」を意味する権限設計のため、Write は不要。Pro 個人契約では組織設定が存在しないため、選択肢自体が Read-only のみ表示される。
    - 生成したトークン（`github_pat_...`）を環境変数 `COPILOT_GITHUB_TOKEN` に設定
 
-3. **信頼ディレクトリ事前登録**（B案：外部ディレクトリのため両方登録が必要）
-   - cron 実行ユーザーで **`TARGET_DIR`（外部ソースディレクトリ）** に移動し `copilot` を起動  
-     → 「**Yes, and remember this folder for future sessions**」を選択
-   - cron 実行ユーザーで **このリポジトリのルート**に移動し `copilot` を起動  
-     → 同様に「**Yes, and remember this folder for future sessions**」を選択
-   - `~/.copilot/settings.json` に両ディレクトリが記録されていることを確認
+3. **信頼ディレクトリ事前登録は不要**
+   - `copilot` の `--allow-all-paths` フラグを使用することでファイルパス検証をスキップできることを実機確認済み。
+   - スクリプトに `--allow-all-paths --allow-all-tools` を付与すれば、事前のインタラクティブ登録作業なしに cron から安全に実行できる。
+
+---
+
+## 実現可能性の事前検証
+
+> 実装着手前に以下3点の技術的リスクを実機で検証した。すべて動作確認済み。
+
+| # | 検証項目 | 結果 | 確認内容 |
+|---|---|---|---|
+| ① | `@ファイルパス` 構文が `copilot -p` で動作するか | ✅ 動作する | CLI内部でgrep/searchツールを自動呼び出してファイルを参照。結果も正確に返却された |
+| ② | `prompt.md` 本文の抽出・プロンプト埋め込み方式 | ✅ 動作する | `awk` でフロントマターを除去 → CSV・SQLを変数展開で埋め込み → アンチパターン検出テーブルが正しく出力された |
+| ③ | cron（TTYなし）での実行時にファイルアクセスが通るか | ✅ 解消済み | `--allow-all-paths` フラグで信頼ディレクトリ検証をスキップできることを確認。信頼ディレクトリの事前登録作業は不要 |
+
+**検証時に判明した重要事項:**
+- `--allow-all-tools` は非対話モード（`-p`）で**必須**のフラグ（未指定だと権限確認でブロックされる）
+- `--allow-all-paths` により外部ディレクトリへのアクセスも許可される（B案の実現に必要）
+- プロンプト文字列にCSV・SQLを直接埋め込む方式が最もシンプルかつ確実に動作する
 
 ---
 
@@ -158,8 +176,21 @@ COPILOT_GITHUB_TOKEN=<生成したトークン> copilot -p "Hello"
    - `check_diff.sh` を呼び出して処理対象ファイルリストを取得
    - 対象ファイルが **0件** → 「変更なし、スキップ」をログに記録して正常終了（API呼び出しなし）
    - 対象ファイルが **1件以上** → ファイルごとにループ処理:
-     - プロンプト: `sql-check.prompt.md` の指示 + `@<対象ファイルパス>` 形式で参照
-     - `copilot -p "..." --allow-tool='shell(cat)'` で実行（ファイル読み取りのみ許可）
+     - `sql-check.prompt.md` のフロントマター（`---`で囲まれた部分）を `awk` で除去してプロンプト本文を抽出
+     - `rules/sql-antipatterns.csv` と対象 `.sql` ファイルの内容を `cat` で変数展開しプロンプトに直接埋め込む
+     - 実行コマンド:
+       ```bash
+       PROMPT_BODY=$(awk '/^---/{n++; if(n==2){found=1; next}} found{print}' "$SQL_CHECK_PROMPT")
+       RULES=$(cat "$RULES_CSV")
+       SQL=$(cat "$target_file")
+       copilot -p "${PROMPT_BODY}
+
+## ルール定義（CSV）
+${RULES}
+
+## チェック対象SQL
+${SQL}" --allow-all-tools --allow-all-paths
+       ```
      - 出力を `reports/sql-check-report_<ファイル名>_YYYYMMDDHHMMSS.md` に保存
    - 全ファイル処理完了後、`TIMESTAMP_FILE` を `touch` で現在時刻に更新
    - `logs/sql-review_YYYYMMDD.log` に追記（処理件数・スキップ件数・エラー内容を記録）
@@ -282,7 +313,7 @@ COPILOT_GITHUB_TOKEN=<生成したトークン> copilot -p "Hello"
 | 項目 | 決定内容 |
 |---|---|
 | 非対話実行 | `copilot -p` コマンドを使用（旧 `gh copilot` は廃止済みのため不採用） |
-| 認証 | Fine-grained PAT（"Copilot Requests: write"）+ `COPILOT_GITHUB_TOKEN` 環境変数 |
+| 認証 | Fine-grained PAT（"Copilot Requests: Read-only"）+ `COPILOT_GITHUB_TOKEN` 環境変数 |
 | 差分チェック基準 | `find -newer` によるタイムスタンプ比較（git不要・外部依存なし） |
 | ルール変更時の挙動 | `rules/sql-antipatterns.csv` 更新時は全ファイルを強制再チェック |
 | タイムスタンプ保存先 | `state/last_run.timestamp`（`.gitignore` で除外） |
