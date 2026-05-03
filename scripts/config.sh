@@ -13,7 +13,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # 例: TARGET_DIR="/path/to/your-app/src/sql"
 # 環境変数で上書き可能（例: TARGET_DIR=/other/path bash run_sql_review.sh）
 # ---------------------------------------------------------------
-TARGET_DIR="${TARGET_DIR:-/path/to/your-app/src/sql}"
+TARGET_DIR="${TARGET_DIR:-/Users/hironorishigaki/Workspace/SQL_Dir}"
 
 # 出力・状態管理ディレクトリ
 REPORTS_DIR="${REPO_ROOT}/reports"
